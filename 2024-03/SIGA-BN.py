@@ -1,70 +1,63 @@
 import numpy as np
 import random
 
-def initialize_population(size):
-    """初始化种群"""
-    population = []
-    for _ in range(size):
-        # 随机生成BN结构，这里用随机矩阵模拟
-        bn_structure = np.random.rand(5, 5)  # 假设有5个变量
-        population.append(bn_structure)
+class BayesianNetwork:
+    def __init__(self, nodes):
+        self.nodes = nodes
+        self.structure = np.zeros((nodes, nodes))  # 初始化网络结构为无连接
+
+def generate_initial_population(size, nodes):
+    population = [BayesianNetwork(nodes) for _ in range(size)]
+    # 随机初始化网络结构（简化示例，实际中需考虑无环等约束）
+    for bn in population:
+        for i in range(nodes):
+            for j in range(i + 1, nodes):
+                if random.random() > 0.5:  # 随机决定是否建立连接
+                    bn.structure[i][j] = 1
     return population
 
-def evaluate_fitness(individual):
-    """评估个体的适应度"""
-    # 这里应使用一种方法来评估BN结构的好坏，如BDeu分数
-    # 简化处理，随机返回适应度
+def evaluate_fitness(bn):
+    # 此处应该有评估网络结构适应度的复杂逻辑
+    # 简化为随机适应度评分
     return random.random()
 
 def select_parents(population):
-    """选择父母个体"""
-    # 可以根据适应度进行选择，这里简化为随机选择
-    return random.sample(population, 2)
+    # 简化的选择逻辑，实际中应使用更复杂的策略如轮盘赌、锦标赛等
+    sorted_population = sorted(population, key=lambda bn: evaluate_fitness(bn), reverse=True)
+    return sorted_population[:2]  # 返回适应度最高的两个个体
 
 def crossover(parent1, parent2):
-    """交叉操作"""
-    # 实际中应根据BN结构特点进行设计，这里用简单的平均作为示例
-    child = (parent1 + parent2) / 2
+    # 简单的单点交叉
+    child = BayesianNetwork(parent1.nodes)
+    crossover_point = random.randint(1, parent1.nodes - 1)
+    child.structure[:crossover_point] = parent1.structure[:crossover_point]
+    child.structure[crossover_point:] = parent2.structure[crossover_point:]
     return child
 
-def mutate(individual):
-    """变异操作"""
-    # 在某些元素上添加小的随机扰动
-    mutation_strength = 0.1
-    mutation = np.random.rand(*individual.shape) * mutation_strength
-    individual += mutation
-    return individual
+def mutate(bn):
+    # 简单的变异操作，随机翻转一个连接的存在与否
+    i, j = random.randint(0, bn.nodes - 1), random.randint(0, bn.nodes - 1)
+    bn.structure[i][j] = 1 - bn.structure[i][j]
+    return bn
 
-def genetic_algorithm():
-    """遗传算法主函数"""
-    population_size = 100
-    generations = 50
-    mutation_rate = 0.1
-
-    # 初始化种群
-    population = initialize_population(population_size)
-
+def genetic_algorithm(size, nodes, generations):
+    population = generate_initial_population(size, nodes)
     for _ in range(generations):
-        new_population = []
-        for _ in range(population_size):
-            # 选择父母
-            parent1, parent2 = select_parents(population)
-            # 交叉
-            child = crossover(parent1, parent2)
-            # 变异
-            if random.random() < mutation_rate:
-                child = mutate(child)
+        parents = select_parents(population)
+        new_population = parents  # 精英保留
+        while len(new_population) < size:
+            child = crossover(parents[0], parents[1])
+            child = mutate(child)
             new_population.append(child)
-        
-        # 评估新种群的适应度并选择下一代
-        fitness_scores = [evaluate_fitness(individual) for individual in new_population]
-        # 简化的选择过程：基于适应度排序，选择前N个
-        population = [x for _, x in sorted(zip(fitness_scores, new_population), reverse=True)][:population_size]
-    
-    # 返回最佳个体
-    best_individual = population[0]
+        population = new_population
+    best_individual = max(population, key=lambda bn: evaluate_fitness(bn))
     return best_individual
 
+# 参数设置
+size = 50  # 种群大小
+nodes = 10  # 节点数量
+generations = 100  # 代数
+
 # 运行遗传算法
-best_bn_structure = genetic_algorithm()
-print("Best BN Structure:", best_bn_structure)
+best_bn = genetic_algorithm(size, nodes, generations)
+print("找到的最佳结构：", best_bn.structure)
